@@ -65,6 +65,7 @@ type Action =
     | { action: "quote_message"; content: string }
     | { action: "edit_message"; id: string }
     | { action: "delete_message"; target: Message }
+    | { action: "react_message"; target: Message }
     | { action: "open_file"; attachment: API.File }
     | { action: "save_file"; attachment: API.File }
     | { action: "copy_file_link"; attachment: API.File }
@@ -402,6 +403,13 @@ export default function ContextMenus() {
                     });
                     break;
 
+                case "react_message":
+                    modalController.push({
+                        type: "react_message",
+                        target: data.target,
+                    });
+                    break;
+
                 case "leave_group":
                 case "close_dm":
                 case "delete_channel":
@@ -508,6 +516,8 @@ export default function ContextMenus() {
                                         "Open in Admin Panel"
                                     ) : locale === "admin_system" ? (
                                         "Open User in Admin Panel"
+                                    ) : locale === "react_message" ? (
+                                        "React"
                                     ) : (
                                         <Text
                                             id={`app.context_menu.${
@@ -831,6 +841,16 @@ export default function ContextMenus() {
                                 action: "edit_message",
                                 id: message._id,
                             });
+                        }
+
+                        if (message.channel?.havePermission("React")) {
+                            generateAction(
+                                {
+                                    action: "react_message",
+                                    target: message,
+                                },
+                                "react_message",
+                            );
                         }
 
                         if (message.author_id !== userId) {
