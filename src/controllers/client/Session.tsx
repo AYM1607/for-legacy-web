@@ -28,6 +28,7 @@ type Transition =
               | "SUCCESS"
               | "DISCONNECT"
               | "RETRY"
+              | "RETRY_FAILED"
               | "LOGOUT"
               | "ONLINE"
               | "OFFLINE";
@@ -40,6 +41,7 @@ export default class Session {
     state: State = window.navigator.onLine ? "Ready" : "Offline";
     user_id: string | null = null;
     client: Client | null = null;
+    retryAttempts: number = 0;
 
     /**
      * Create a new Session
@@ -89,9 +91,11 @@ export default class Session {
      * Called when the client signals it has disconnected
      */
     private onDropped() {
-        this.emit({
-            action: "DISCONNECT",
-        });
+        if (this.state === "Connecting") {
+            this.emit({ action: "RETRY_FAILED" });
+        } else {
+            this.emit({ action: "DISCONNECT" });
+        }
     }
 
     /**
@@ -211,6 +215,7 @@ export default class Session {
             // Ready successfully received
             case "SUCCESS": {
                 this.assert("Connecting");
+                this.retryAttempts = 0;
                 this.state = "Online";
                 break;
             }
@@ -237,6 +242,18 @@ export default class Session {
                 this.assert("Disconnected");
                 this.client!.websocket.connect();
                 this.state = "Connecting";
+                break;
+            }
+            // Reconnect attempt failed, schedule another with backoff
+            case "RETRY_FAILED": {
+                this.assert("Connecting");
+                this.retryAttempts++;
+                const delay = Math.min(500 * Math.pow(2, this.retryAttempts), 16000);
+                setTimeout(() => {
+                    if (this.state === "Connecting") {
+                        this.client!.websocket.connect();
+                    }
+                }, delay);
                 break;
             }
             // User instructed logout
