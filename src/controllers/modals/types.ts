@@ -154,6 +154,10 @@ export type Modal = {
           target: Message;
       }
     | {
+          type: "react_message",
+          target: Message;
+      }
+    | {
           type: "kick_member";
           member: Member;
       }
